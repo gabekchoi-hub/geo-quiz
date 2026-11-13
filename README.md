@@ -2,7 +2,9 @@
 
 A single-page quiz for learning where US states and world countries are.
 
-**To play:** open `geo-quiz.html` in a browser. It needs an internet connection to download the map data.
+**Play online:** https://gabekchoi-hub.github.io/geo-quiz/
+
+**Play locally:** open `index.html` in a browser. It needs an internet connection to download the map data.
 
 ## Maps
 - **US States:** all 50.
