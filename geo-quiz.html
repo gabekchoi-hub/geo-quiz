@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geography Quiz</title>
+<style>
+:root{
+  --ink:#111; --mute:#6b6b6b; --line:#e3e3e3;
+  --correct:#2f9e5b; --revealed:#e5484d; --target:#ffd23f; --wrong:#e5484d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:14px}
+h1{font-size:22px;margin:0;font-weight:650}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+select{font:inherit;font-size:14px;padding:6px 10px;border:1.5px solid var(--ink);border-radius:8px;background:#fff;cursor:pointer}
+.modes{display:inline-flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
+.modes button{border:0;background:#fff;padding:7px 14px;font:inherit;font-size:14px;cursor:pointer}
+.modes button.on{background:var(--ink);color:#fff}
+.stats{display:flex;gap:16px;align-items:center;font-size:14px;color:var(--mute)}
+.stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+.btn{border:1.5px solid var(--ink);background:#fff;border-radius:8px;padding:7px 14px;font:inherit;font-size:14px;cursor:pointer}
+.btn:hover{background:#f3f3f3}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#333}
+
+.prompt{min-height:64px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;border:1.5px solid var(--ink);border-radius:10px;padding:12px 16px;margin-bottom:12px}
+.prompt .q{font-size:20px}
+.prompt .q strong{font-size:24px}
+.dots{display:flex;gap:5px}
+.dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink)}
+.dots i.used{background:var(--wrong);border-color:var(--wrong)}
+.msg{font-size:15px;color:var(--mute)}
+.msg.bad{color:var(--wrong)} .msg.good{color:var(--correct)}
+#guess{font:inherit;font-size:18px;padding:7px 12px;border:1.5px solid var(--ink);border-radius:8px;width:min(300px,100%)}
+#guess:focus{outline:3px solid var(--target);outline-offset:1px}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+.mapbox{position:relative;border:1.5px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden}
+svg{display:block;width:100%;height:auto}
+/* Solid black arrow with a white outline, so it shows up on the white map */
+#mapbox svg,#mapbox svg *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M3 2 L3 22 L8.5 16.5 L12 24.5 L15.5 23 L12 15.5 L19 15.5 Z' fill='black' stroke='white' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, default!important}
+.state{fill:#fff;stroke:var(--ink);stroke-width:.8;stroke-linejoin:round;transition:fill .25s;vector-effect:non-scaling-stroke}
+.other{fill:#ececec;stroke:#9a9a9a;stroke-width:.6;vector-effect:non-scaling-stroke}
+.box,.marker{fill:#fff;stroke:var(--ink);stroke-width:1;transition:fill .25s;vector-effect:non-scaling-stroke}
+.find .state:not(.correct):not(.revealed),.find .box:not(.correct):not(.revealed),.find .marker:not(.correct):not(.revealed){cursor:pointer}
+.find .state:not(.correct):not(.revealed):hover,.find .box:not(.correct):not(.revealed):hover,.find .marker:not(.correct):not(.revealed):hover{fill:#efefef}
+.hl{fill:#bfe0ff}
+.correct{fill:var(--correct)!important}
+.revealed{fill:var(--revealed)!important}
+.target{fill:var(--target)!important}
+.flash{fill:#f6a5a7!important}
+.subbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:-4px 0 12px}
+.subbar .tag{background:var(--target);border:1.5px solid var(--ink);border-radius:99px;padding:3px 12px;font-size:13px;font-weight:600}
+.btn:disabled{opacity:.4;cursor:default;background:#fff}
+.btn.small{padding:5px 12px;font-size:13px}
+.pulse{animation:pulse .5s 3}
+@keyframes pulse{50%{fill:var(--target)}}
+.leader{stroke:#999;stroke-width:.6;fill:none}
+.boxlabel{font:600 11px system-ui,sans-serif;fill:#fff;pointer-events:none;text-anchor:middle;dominant-baseline:central}
+
+#kbdpath,#kbdring{fill:none;stroke:#1a6fe0;stroke-width:3;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#kbdpath.bump{animation:bump .3s}
+@keyframes bump{50%{stroke:#e5484d;stroke-width:5}}
+#mag{pointer-events:none}
+#mag .bg{fill:#fff}
+.zoomable #mag .bg{fill:#e8f1fa}
+#mag .ring{fill:none;stroke:var(--ink);stroke-width:2.5}
+#mag .maghl{fill:rgba(64,150,255,.35);stroke:#1a6fe0;stroke-width:2.5;vector-effect:non-scaling-stroke}
+#mag .magdot{fill:none;stroke:#1a6fe0;stroke-width:2.5}
+
+.zoombtns{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px}
+.zoombtns button{width:34px;height:34px;border:1.5px solid var(--ink);background:#fff;border-radius:8px;font-size:18px;line-height:1;cursor:pointer}
+.zoombtns button:hover{background:#f3f3f3}
+
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:13px;padding:4px 9px;border-radius:6px;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:5}
+.legend{display:flex;gap:18px;font-size:13px;color:var(--mute);margin-top:10px;flex-wrap:wrap}
+.legend span:before{content:"";display:inline-block;width:12px;height:12px;border:1px solid var(--ink);margin-right:6px;vertical-align:-1px}
+.legend span.plain:before{display:none}
+.lg-c:before{background:var(--correct)} .lg-r:before{background:var(--revealed)} .lg-t:before{background:var(--target)} .lg-o:before{background:#ececec;border-color:#9a9a9a!important}
+.loading{padding:80px;text-align:center;color:var(--mute)}
+.done{font-size:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Geography Quiz</h1>
+    <div class="controls">
+      <select id="map" aria-label="Map">
+        <option value="us">US States</option>
+        <option value="world">World Countries (UN)</option>
+      </select>
+      <select id="region" aria-label="Region" hidden></select>
+      <div class="modes">
+        <button id="m-find" class="on">Find it (click)</button>
+        <button id="m-name">Name it (type)</button>
+      </div>
+    </div>
+    <div class="stats">
+      <span>Done <b id="s-done">0</b>/<b id="s-total">0</b></span>
+      <span>Correct <b id="s-right">0</b></span>
+      <span>Missed <b id="s-given">0</b></span>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </header>
+
+  <div class="subbar">
+    <span class="tag" id="practiceTag" hidden>Practicing your missed ones</span>
+    <button class="btn small" id="practice">Practice missed (0)</button>
+    <button class="btn small" id="clearMissed">Reset missed list</button>
+    <span class="msg" id="saveNote">Progress saves automatically</span>
+  </div>
+
+  <div class="prompt" id="prompt"></div>
+  <div class="mapbox" id="mapbox"></div>
+  <div class="legend">
+    <span class="lg-c">Got it</span>
+    <span class="lg-r">Missed (added to your practice list)</span>
+    <span class="lg-t">Current one (Name it mode)</span>
+    <span class="lg-o" id="lg-other" hidden>Not a UN member</span>
+    <span class="plain" id="lg-hint">Hover over a filled one to see its name</span>
+    <span class="plain">Find it: arrow keys move between neighbors, Enter picks, Esc clears</span>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+const MAX_TRIES = 5;
+const CDN = 'https://cdn.jsdelivr.net/npm/';
+
+// ---- The 193 UN member states: ISO numeric code | name | region | other accepted names ----
+const UN_DATA = `
+012|Algeria|AF
+024|Angola|AF
+204|Benin|AF
+072|Botswana|AF
+854|Burkina Faso|AF
+108|Burundi|AF
+132|Cabo Verde|AF|Cape Verde
+120|Cameroon|AF
+140|Central African Republic|AF|CAR
+148|Chad|AF
+174|Comoros|AF
+178|Republic of the Congo|AF|Congo;Congo Republic;Congo-Brazzaville
+180|DR Congo|AF|Democratic Republic of the Congo;DRC;Congo;Congo-Kinshasa;Zaire
+384|Côte d'Ivoire|AF|Ivory Coast
+262|Djibouti|AF
+818|Egypt|AF
+226|Equatorial Guinea|AF
+232|Eritrea|AF
+748|Eswatini|AF|Swaziland
+231|Ethiopia|AF
+266|Gabon|AF
+270|Gambia|AF
+288|Ghana|AF
+324|Guinea|AF
+624|Guinea-Bissau|AF
+404|Kenya|AF
+426|Lesotho|AF
+430|Liberia|AF
+434|Libya|AF
+450|Madagascar|AF
+454|Malawi|AF
+466|Mali|AF
+478|Mauritania|AF
+480|Mauritius|AF
+504|Morocco|AF
+508|Mozambique|AF
+516|Namibia|AF
+562|Niger|AF
+566|Nigeria|AF
+646|Rwanda|AF
+678|São Tomé and Príncipe|AF|Sao Tome
+686|Senegal|AF
+690|Seychelles|AF
+694|Sierra Leone|AF
+706|Somalia|AF
+710|South Africa|AF
+728|South Sudan|AF
+729|Sudan|AF
+834|Tanzania|AF
+768|Togo|AF
+788|Tunisia|AF
+800|Uganda|AF
+894|Zambia|AF
+716|Zimbabwe|AF
+004|Afghanistan|AS
+051|Armenia|AS
+031|Azerbaijan|AS
+048|Bahrain|AS
+050|Bangladesh|AS
+064|Bhutan|AS
+096|Brunei|AS|Brunei Darussalam
+116|Cambodia|AS
+156|China|AS
+196|Cyprus|AS
+268|Georgia|AS
+356|India|AS
+360|Indonesia|AS
+364|Iran|AS
+368|Iraq|AS
+376|Israel|AS
+392|Japan|AS
+400|Jordan|AS
+398|Kazakhstan|AS
+414|Kuwait|AS
+417|Kyrgyzstan|AS
+418|Laos|AS|Lao PDR
+422|Lebanon|AS
+458|Malaysia|AS
+462|Maldives|AS
+496|Mongolia|AS
+104|Myanmar|AS|Burma
+524|Nepal|AS
+408|North Korea|AS|DPRK
+512|Oman|AS
+586|Pakistan|AS
+608|Philippines|AS
+634|Qatar|AS
+682|Saudi Arabia|AS
+702|Singapore|AS
+410|South Korea|AS|Republic of Korea
+144|Sri Lanka|AS
+760|Syria|AS
+762|Tajikistan|AS
+764|Thailand|AS
+626|Timor-Leste|AS|East Timor
+792|Turkey|AS|Türkiye
+795|Turkmenistan|AS
+784|United Arab Emirates|AS|UAE;Emirates
+860|Uzbekistan|AS
+704|Vietnam|AS|Viet Nam
+887|Yemen|AS
+008|Albania|EU
+020|Andorra|EU
+040|Austria|EU
+112|Belarus|EU
+056|Belgium|EU
+070|Bosnia and Herzegovina|EU|Bosnia
+100|Bulgaria|EU
+191|Croatia|EU
+203|Czechia|EU|Czech Republic
+208|Denmark|EU
+233|Estonia|EU
+246|Finland|EU
+250|France|EU
+276|Germany|EU
+300|Greece|EU
+348|Hungary|EU
+352|Iceland|EU
+372|Ireland|EU
+380|Italy|EU
+428|Latvia|EU
+438|Liechtenstein|EU
+440|Lithuania|EU
+442|Luxembourg|EU
+470|Malta|EU
+498|Moldova|EU
+492|Monaco|EU
+499|Montenegro|EU
+528|Netherlands|EU|Holland
+807|North Macedonia|EU|Macedonia
+578|Norway|EU
+616|Poland|EU
+620|Portugal|EU
+642|Romania|EU
+643|Russia|EU|Russian Federation
+674|San Marino|EU
+688|Serbia|EU
+703|Slovakia|EU
+705|Slovenia|EU
+724|Spain|EU
+752|Sweden|EU
+756|Switzerland|EU
+804|Ukraine|EU
+826|United Kingdom|EU|UK;Britain;Great Britain
+028|Antigua and Barbuda|NA|Antigua
+044|Bahamas|NA
+052|Barbados|NA
+084|Belize|NA
+124|Canada|NA
+188|Costa Rica|NA
+192|Cuba|NA
+212|Dominica|NA
+214|Dominican Republic|NA
+222|El Salvador|NA
+308|Grenada|NA
+320|Guatemala|NA
+332|Haiti|NA
+340|Honduras|NA
+388|Jamaica|NA
+484|Mexico|NA
+558|Nicaragua|NA
+591|Panama|NA
+659|Saint Kitts and Nevis|NA|Saint Kitts
+662|Saint Lucia|NA
+670|Saint Vincent and the Grenadines|NA|Saint Vincent
+780|Trinidad and Tobago|NA|Trinidad
+840|United States|NA|USA;US;United States of America;America
+032|Argentina|SA
+068|Bolivia|SA
+076|Brazil|SA
+152|Chile|SA
+170|Colombia|SA
+218|Ecuador|SA
+328|Guyana|SA
+600|Paraguay|SA
+604|Peru|SA
+740|Suriname|SA
+858|Uruguay|SA
+862|Venezuela|SA
+036|Australia|OC
+242|Fiji|OC
+296|Kiribati|OC
+584|Marshall Islands|OC
+583|Micronesia|OC|Federated States of Micronesia;FSM
+520|Nauru|OC
+554|New Zealand|OC
+585|Palau|OC
+598|Papua New Guinea|OC|PNG
+882|Samoa|OC
+090|Solomon Islands|OC
+776|Tonga|OC
+798|Tuvalu|OC
+548|Vanuatu|OC`.trim().split('\n').map(line => {
+  const [id, name, region, aliases] = line.split('|');
+  return {id, name, region, aliases: aliases ? aliases.split(';') : []};
+});
+
+const REGIONS = [
+  ['all', 'All regions'], ['AF', 'Africa'], ['AS', 'Asia'], ['EU', 'Europe'],
+  ['NA', 'North & Central America'], ['SA', 'South America'], ['OC', 'Oceania'],
+];
+// Lon/lat boxes used to zoom the world map to a region
+const REGION_BOX = {
+  AF: [[-20, -36], [53, 38]], AS: [[25, -11], [150, 56]], EU: [[-25, 34], [45, 71]],
+  NA: [[-168, 7], [-52, 72]], SA: [[-82, -56], [-34, 13]], OC: [[110, -48], [190, 10]],
+};
+
+// US: small northeastern states get a clickable box off the coast
+const US_CALLOUTS = [['50','VT'],['33','NH'],['25','MA'],['44','RI'],['09','CT'],['34','NJ'],['10','DE'],['24','MD']];
+const BOX = {x:952, y0:178, w:42, h:22, gap:28};
+
+const MAPS = {
+  us:    {url: CDN + 'us-atlas@3.0.1/states-albers-10m.json', object: 'states', noun: 'state', zoom: false},
+  world: {url: CDN + 'world-atlas@2.0.2/countries-50m.json', object: 'countries', noun: 'country', zoom: true},
+};
+const POINT_ONLY = {'798': [179.2, -8.52]}; // Tuvalu isn't in the map data
+const MAG_MAX_SIZE = 20;     // world: magnify countries smaller than this on screen (map units × zoom)
+const MARKER_R = 4;        // dot radius for tiny countries (screen units)
+const TINY_AREA = 14;        // countries smaller than this (px² at full view) get a dot
+
+const $ = id => document.getElementById(id);
+const tip = $('tip');
+const cache = {};
+
+// map state
+let mapKey = 'us', cfg, items = [], byId = {}, proj = null, geoPath, W, H, MAG;
+let svg, zoomLayer, zoom = null, curK = 1, smallIds = new Set(), candidates = [];
+// game state
+let mode = 'find', region = 'all', status = {}, queue = [], total = 0, current = null, tries = 0, locked = false;
+
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/&/g, ' and ').replace(/^\s*the\s+/, '').replace(/\bst\b\.?/g, 'saint').replace(/[^a-z]/g, '');
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const plural = n => n === 1 ? 'try' : 'tries';
+
+// ---------- Loading & drawing ----------
+async function loadMap(key) {
+  mapKey = key; cfg = MAPS[key];
+  const box = $('mapbox');
+  box.innerHTML = `<div class="loading">Loading ${key === 'world' ? 'world map (about 1 MB, can take a few seconds)' : 'map'}…</div>`;
+  box.classList.toggle('zoomable', cfg.zoom);
+  $('region').hidden = key !== 'world';
+  $('lg-other').hidden = key !== 'world';
+  let topo;
+  try { topo = cache[key] || (cache[key] = await d3.json(cfg.url)); }
+  catch { box.innerHTML = '<div class="loading">Could not load the map. This page needs an internet connection.</div>'; return; }
+
+  const feats = topojson.feature(topo, topo.objects[cfg.object]).features;
+  let others = [];
+  if (key === 'us') {
+    items = feats.filter(f => +f.id <= 56 && f.id !== '11')
+      .map(f => ({id: f.id, name: f.properties.name, aliases: [], region: 'all', f}));
+  } else {
+    // Some codes appear on more than one shape (e.g. Australia + its reef islands): merge them
+    const byCode = new Map();
+    for (const f of feats.filter(f => f.id)) {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      const prev = byCode.get(f.id);
+      if (prev) prev.geometry.coordinates.push(...polys);
+      else byCode.set(f.id, {...f, geometry: {type: 'MultiPolygon', coordinates: [...polys]}});
+    }
+    // Countries too small for this map's data get a dot at their real location
+    for (const [id, coords] of Object.entries(POINT_ONLY))
+      if (!byCode.has(id)) byCode.set(id, {type: 'Feature', id, properties: {}, geometry: {type: 'Point', coordinates: coords}});
+    items = UN_DATA.map(c => ({...c, f: byCode.get(c.id)}));
+    const missing = items.filter(i => !i.f);
+    if (missing.length) console.warn('Not on map:', missing.map(m => m.name));
+    items = items.filter(i => i.f);
+    const ids = new Set(items.map(i => i.id));
+    others = feats.filter(f => !ids.has(f.id) && f.properties.name !== 'Antarctica');  }
+  byId = {}; items.forEach(i => byId[i.id] = i);
+  candidates = items.flatMap(i => [i.name, ...i.aliases].map(k => ({id: i.id, key: norm(k)})));
+
+  // Projection
+  if (key === 'us') {
+    proj = null; geoPath = d3.geoPath(); W = 1005; H = 610;
+    MAG = {x: 925, y: 515, r: 80};
+  } else {
+    const coll = {type: 'FeatureCollection', features: [...items.map(i => i.f), ...others]};
+    W = 1000;
+    proj = d3.geoEqualEarth().rotate([-11, 0]).fitWidth(W - 20, coll);
+    const t = proj.translate(); proj.translate([t[0] + 10, t[1] + 10]);
+    geoPath = d3.geoPath(proj).pointRadius(0.8);
+    H = Math.ceil(geoPath.bounds(coll)[1][1] + 10);
+    MAG = {x: 100, y: H - 100, r: 85};
+  }
+
+  box.innerHTML = '';
+  svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  zoomLayer = svg.append('g').attr('id', 'zoomlayer');
+  const land = zoomLayer.append('g').attr('id', 'land');
+  land.selectAll('path.other').data(others).join('path').attr('class', 'other').attr('d', geoPath);
+  land.selectAll('path.state').data(items).join('path')
+    .attr('class', 'state').attr('data-id', d => d.id).attr('d', d => geoPath(d.f));
+
+  smallIds = new Set();
+  if (key === 'us') drawCallouts();
+  else drawMarkers();
+  buildNeighbors(topo);
+  drawKbdLayer();
+  drawMagnifier();
+
+  svg.selectAll('[data-id]')
+    .on('click', e => onMapClick(e.currentTarget.dataset.id))
+    // US: the boxed states. World: any country that looks small at the current zoom.
+    .on('mouseenter', e => {
+      const id = e.currentTarget.dataset.id;
+      clearKbd(); lastHover = id;
+      if (zoom || smallIds.has(id)) showMag(id);
+    })
+    .on('mousemove', e => {
+      const id = e.currentTarget.dataset.id;
+      showTip(e, status[id] ? byId[id].name : null);
+    })
+    .on('mouseleave', () => { hideTip(); hideMag(); });
+  svg.selectAll('path.other')
+    .on('mousemove', (e, d) => showTip(e, `${d.properties.name} · not a UN member`))
+    .on('mouseleave', hideTip);
+
+  if (cfg.zoom) {
+    zoom = d3.zoom().scaleExtent([1, 40]).extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]])
+      .clickDistance(5)
+      .on('zoom', e => {
+        zoomLayer.attr('transform', e.transform);
+        curK = e.transform.k;
+        zoomLayer.selectAll('circle.marker').attr('r', MARKER_R / curK);
+        zoomLayer.select('#kbdring').attr('r', 9 / curK);
+      });
+    svg.call(zoom).on('dblclick.zoom', null);
+    const zb = d3.select(box).append('div').attr('class', 'zoombtns');
+    zb.append('button').attr('title', 'Zoom in').text('+').on('click', () => svg.transition().duration(300).call(zoom.scaleBy, 2));
+    zb.append('button').attr('title', 'Zoom out').text('−').on('click', () => svg.transition().duration(300).call(zoom.scaleBy, 0.5));
+    zb.append('button').attr('title', 'Reset view').text('⟲').on('click', zoomToRegion);
+  } else { zoom = null; curK = 1; }
+
+  buildRegionSelect();
+  start();
+}
+
+function drawCallouts() {
+  const g = zoomLayer.append('g');
+  US_CALLOUTS.forEach(([id, abbr], i) => {
+    const it = byId[id]; if (!it) return;
+    smallIds.add(id);
+    const [cx, cy] = geoPath.centroid(it.f);
+    const y = BOX.y0 + i * BOX.gap;
+    g.append('path').attr('class', 'leader').attr('d', `M${BOX.x},${y + BOX.h / 2} L${cx},${cy}`);
+    g.append('rect').attr('class', 'box').attr('data-id', id)
+      .attr('x', BOX.x).attr('y', y).attr('width', BOX.w).attr('height', BOX.h).attr('rx', 3);
+    g.append('text').attr('class', 'boxlabel').attr('data-for', id)
+      .attr('x', BOX.x + BOX.w / 2).attr('y', y + BOX.h / 2).text('');
+    it.abbr = abbr;
+  });
+}
+
+function drawMarkers() {
+  const tiny = items.filter(i => geoPath.area(i.f) < TINY_AREA);
+  tiny.forEach(i => smallIds.add(i.id));
+  zoomLayer.append('g').attr('id', 'markers').selectAll('circle').data(tiny).join('circle')
+    .attr('class', 'marker').attr('data-id', d => d.id).attr('r', MARKER_R)
+    .attr('cx', d => focusOf(d).cx).attr('cy', d => focusOf(d).cy);
+}
+
+function drawMagnifier() {
+  const mag = svg.append('g').attr('id', 'mag').style('display', 'none');
+  mag.append('clipPath').attr('id', 'magclip').append('circle').attr('cx', MAG.x).attr('cy', MAG.y).attr('r', MAG.r);
+  mag.append('circle').attr('class', 'bg').attr('cx', MAG.x).attr('cy', MAG.y).attr('r', MAG.r);
+  const z = mag.append('g').attr('clip-path', 'url(#magclip)').append('g').attr('id', 'magzoom');
+  z.append('use').attr('href', '#land');
+  z.append('path').attr('class', 'maghl');
+  mag.append('circle').attr('class', 'magdot').attr('cx', MAG.x).attr('cy', MAG.y).attr('r', 9).style('display', 'none');
+  mag.append('circle').attr('class', 'ring').attr('cx', MAG.x).attr('cy', MAG.y).attr('r', MAG.r);
+}
+
+// Center + size of a feature in map units (handles countries split across the map edge)
+function focusOf(item) {
+  const [[x0, y0], [x1, y1]] = geoPath.bounds(item.f);
+  if (proj && x1 - x0 > W * 0.5) {
+    const [cx, cy] = proj(d3.geoCentroid(item.f));
+    return {cx, cy, size: Math.max(2 * Math.sqrt(geoPath.area(item.f)), 1)};
+  }
+  return {cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, size: Math.max(x1 - x0, y1 - y0, 0.5)};
+}
+
+// ---------- Zoom helpers (world map) ----------
+function zoomToPoint(cx, cy, k, ms = 750) {
+  if (!zoom) return;
+  const t = d3.zoomIdentity.translate(W / 2, H / 2).scale(k).translate(-cx, -cy);
+  svg.transition().duration(ms).call(zoom.transform, t);
+}
+function zoomToItem(id) {
+  if (!zoom) return;
+  const {cx, cy, size} = focusOf(byId[id]);
+  zoomToPoint(cx, cy, Math.max(1, Math.min(8, 0.35 * H / size)));
+}
+function zoomToRegion() {
+  if (!zoom) return;
+  if (region === 'all' || practice) return svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+  const [[lo0, la0], [lo1, la1]] = REGION_BOX[region];
+  const pts = [];
+  for (let a = 0; a <= 8; a++) for (let b = 0; b <= 8; b++)
+    pts.push(proj([lo0 + (lo1 - lo0) * a / 8, la0 + (la1 - la0) * b / 8]));
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.max(1, Math.min(20, 0.95 * Math.min(W / (x1 - x0), H / (y1 - y0))));
+  zoomToPoint((x0 + x1) / 2, (y0 + y1) / 2, k, 600);
+}
+
+// ---------- Magnifier & tooltip ----------
+let magId = null;
+function showMag(id) {
+  hideMag();
+  const {cx, cy, size} = focusOf(byId[id]);
+  if (zoom && size * curK > MAG_MAX_SIZE) return; // already big enough on screen
+  magId = id;
+  const k = Math.max(2.5, Math.min(zoom ? 20 : 60, (MAG.r * 1.1) / size));
+  d3.select('#magzoom').attr('transform', `translate(${MAG.x},${MAG.y}) scale(${k}) translate(${-cx},${-cy})`);
+  d3.select('#mag .maghl').attr('d', geoPath(byId[id].f));
+  d3.select('#mag .magdot').style('display', size * k < 14 ? null : 'none');
+  d3.select('#mag').style('display', null);
+  if (!status[id]) addCls(id, 'hl');
+}
+function hideMag() {
+  if (magId) rmCls(magId, 'hl');
+  magId = null;
+  d3.select('#mag').style('display', 'none');
+}
+function showTip(e, text) {
+  if (!text) return hideTip();
+  tip.textContent = text;
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top = (e.clientY + 14) + 'px';
+  tip.style.opacity = 1;
+}
+function hideTip() { tip.style.opacity = 0; }
+
+// ---------- Keyboard: arrow keys move between neighbors, Enter/Space picks ----------
+let neighbors = {}, borders = {}, centers = {}, kbdSel = null, lastHover = null, trail = [];
+
+function buildNeighbors(topo) {
+  const geoms = topo.objects[cfg.object].geometries;
+  const nb = topojson.neighbors(geoms);
+  neighbors = {}; centers = {}; kbdSel = null; lastHover = null;
+  items.forEach(i => neighbors[i.id] = new Set());
+  geoms.forEach((g, a) => nb[a].forEach(b => {
+    const ida = geoms[a].id, idb = geoms[b].id;
+    if (ida !== idb && neighbors[ida] && neighbors[idb]) { neighbors[ida].add(idb); neighbors[idb].add(ida); }
+  }));
+  // Center = middle of the country's largest landmass (so France isn't pulled toward French Guiana)
+  items.forEach(i => {
+    const g = i.f.geometry;
+    if (g.type === 'Point') { centers[i.id] = proj ? proj(g.coordinates) : g.coordinates; return; }
+    let main = g;
+    if (g.type === 'MultiPolygon') {
+      let best = -1;
+      for (const coords of g.coordinates) {
+        const p = {type: 'Polygon', coordinates: coords}, a = geoPath.area(p);
+        if (a > best) { best = a; main = p; }
+      }
+    }
+    const [[x0], [x1]] = geoPath.bounds(main);
+    centers[i.id] = (proj && x1 - x0 > W * 0.5) ? proj(d3.geoCentroid(main)) : geoPath.centroid(main);
+  });
+  pathEls = {}; bboxes = {}; areas = {};
+  items.forEach(i => {
+    pathEls[i.id] = document.querySelector(`#land .state[data-id="${i.id}"]`);
+    bboxes[i.id] = geoPath.bounds(i.f);
+    areas[i.id] = geoPath.area(i.f);
+  });
+  // Where each shared border is (its midpoint) and how long it is
+  borders = {};
+  const obj = topo.objects[cfg.object];
+  for (const a in neighbors) {
+    borders[a] ||= {};
+    for (const b of neighbors[a]) {
+      if (borders[b] && borders[b][a]) { borders[a][b] = borders[b][a]; continue; }
+      const m = topojson.mesh(topo, obj, (g1, g2) => (g1.id === a && g2.id === b) || (g1.id === b && g2.id === a));
+      const mid = geoPath.centroid(m), len = geoPath.measure(m);
+      borders[a][b] = (len > 0 && isFinite(mid[0])) ? {mid, len} : null;
+    }
+  }
+}
+
+function drawKbdLayer() {
+  const g = zoomLayer.append('g').attr('id', 'kbdlayer').style('pointer-events', 'none').style('display', 'none');
+  g.append('path').attr('id', 'kbdpath');
+  g.append('circle').attr('id', 'kbdring').attr('r', 9 / curK);
+}
+
+const DIRS = {ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0]};
+const OPP = {ArrowUp: 'ArrowDown', ArrowDown: 'ArrowUp', ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft'};
+const unit = (x, y) => { const d = Math.hypot(x, y); return d < 1e-6 ? null : [x / d, y / d]; };
+
+// Which ones the arrows can land on: the current region's (or everything)
+function navSet() {
+  return new Set(items.filter(i => practice || region === 'all' || i.region === region).map(i => i.id));
+}
+
+// What's directly that way? Walk a line out from the middle of the current one and return the first
+// state/country it enters (tiny countries count as a small circle so the line can hit them).
+let pathEls = {}, bboxes = {}, areas = {};
+function rayHit(fromId, key, allowed) {
+  const probe = Object.values(pathEls)[0];
+  if (!probe || typeof probe.isPointInFill !== 'function') return null;
+  const [ux, uy] = DIRS[key], [ax, ay] = centers[fromId];
+  const step = proj ? 0.5 : 1, reach = proj ? 220 : 300, tinyR = proj ? 5 : 0;
+  const maxGap = proj ? 30 : 40; // don't shoot across wide open water (e.g. Florida → Louisiana)
+  // only things whose middle is ahead of us (so an enclave like San Marino doesn't bounce back into Italy)
+  const cands = [...allowed].filter(id => id !== fromId && bboxes[id] &&
+    (centers[id][0] - ax) * ux + (centers[id][1] - ay) * uy > 0);
+  const self = pathEls[fromId], pt = new DOMPoint();
+  let lastIn = 0;
+  for (let t = step; t <= reach; t += step) {
+    const x = ax + ux * t, y = ay + uy * t;
+    pt.x = x; pt.y = y;
+    if (self && self.isPointInFill(pt)) { lastIn = t; continue; }
+    if (t - lastIn > maxGap) return null;
+    for (const id of cands) {
+      const b = bboxes[id];
+      if (x < b[0][0] - tinyR || x > b[1][0] + tinyR || y < b[0][1] - tinyR || y > b[1][1] + tinyR) continue;
+      if (tinyR && smallIds.has(id) && Math.hypot(x - centers[id][0], y - centers[id][1]) <= tinyR) return id;
+      pt.x = x; pt.y = y;
+      if (pathEls[id] && pathEls[id].isPointInFill(pt)) return id;
+    }
+  }
+  return null;
+}
+
+function pickDir(fromId, key, allowed = navSet()) {
+  const [ux, uy] = DIRS[key], A = centers[fromId];
+  const fwd = id => (centers[id][0] - A[0]) * ux + (centers[id][1] - A[1]) * uy;
+  let best = null, bestS = Infinity;
+
+  // 1) Bordering ones: aim at where the shared border is (blended with where the neighbor's middle is).
+  //    So from Ohio, Right = Pennsylvania (border on Ohio's east side), not West Virginia.
+  const nbs = [...(neighbors[fromId] || [])].filter(id => allowed.has(id));
+  const maxLen = Math.max(1e-6, ...nbs.map(id => (borders[fromId][id] || {}).len || 0));
+  const ok = [];
+  for (const id of nbs) {
+    const info = borders[fromId][id], B = centers[id];
+    const dB = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    // If the shared border wraps around us (we're an enclave, e.g. San Marino in Italy), its midpoint
+    // is basically our own middle and says nothing about direction, so only use the neighbor's middle.
+    const midUseful = info && Math.hypot(info.mid[0] - A[0], info.mid[1] - A[1]) > 0.25 * dB;
+    const v1 = midUseful ? unit(info.mid[0] - A[0], info.mid[1] - A[1]) : null;
+    const v2 = unit(B[0] - A[0], B[1] - A[1]);
+    const v = v1 && v2 ? unit(v1[0] + 0.6 * v2[0], v1[1] + 0.6 * v2[1]) : (v1 || v2);
+    if (!v) continue;
+    const cos = v[0] * ux + v[1] * uy;
+    if (cos < 0.3) continue;                                  // within ~70° of the arrow
+    ok.push({id, cos});
+    const s = (1 - cos) - 0.15 * ((info ? info.len : 0) / maxLen); // straighter + longer border wins
+    if (s < bestS) { bestS = s; best = id; }
+  }
+  if (best) {
+    // Stepping stones: a much smaller neighbor that's on the way gets visited first
+    // (Iraq ↓ Kuwait ↓ Saudi Arabia, Belgium → Luxembourg → Germany)
+    // Only if it's nearly in line with the arrow (so France → isn't Monaco, Iran ← isn't Azerbaijan).
+    const side = id => Math.abs((centers[id][0] - A[0]) * uy - (centers[id][1] - A[1]) * ux);
+    // Tiny countries nearby count too even without a shared border (Italy ← Monaco, Tunisia → Malta)
+    if (proj) for (const id of smallIds) {
+      if (id === fromId || !allowed.has(id) || neighbors[fromId].has(id)) continue;
+      const v = unit(centers[id][0] - A[0], centers[id][1] - A[1]);
+      if (v && Math.hypot(centers[id][0] - A[0], centers[id][1] - A[1]) < 25 && !landBetween(fromId, id))
+        ok.push({id, cos: v[0] * ux + v[1] * uy});
+    }
+    let stone = null, stoneCos = 0.5;
+    for (const {id, cos} of ok) {
+      if (id === best || cos < stoneCos) continue;
+      if (areas[id] < 0.2 * areas[best] && fwd(id) > 0 && fwd(id) < fwd(best) &&
+          side(id) < 0.35 * Math.max(fwd(best), 1e-6)) { stone = id; stoneCos = cos; }
+    }
+    return stone || best;
+  }
+
+  // 2) Nothing bordering that way: look straight ahead across a short stretch of water
+  const hit = rayHit(fromId, key, allowed);
+  if (hit) return hit;
+
+  // 3) Still nothing (open sea, island chains): nearest one fairly straight ahead, within reach
+  const reach = proj ? 220 : 300;
+  for (const id of allowed) {
+    if (id === fromId) continue;
+    const B = centers[id], dx = B[0] - A[0], dy = B[1] - A[1], d = Math.hypot(dx, dy);
+    if (d < 1e-6 || d > reach) continue;
+    const cos = (dx * ux + dy * uy) / d;
+    if (cos < 0.6) continue;                                  // within ~53°
+    const s = d * (2 - cos) ** 2;
+    if (s < bestS) { bestS = s; best = id; }
+  }
+  return best;
+}
+
+// Is another country in the way on the straight line from a to b? (checks a few points along it)
+function landBetween(a, b) {
+  const [ax, ay] = centers[a], [bx, by] = centers[b], pt = new DOMPoint();
+  for (const f of [0.25, 0.5, 0.75]) {
+    pt.x = ax + (bx - ax) * f; pt.y = ay + (by - ay) * f;
+    for (const id in pathEls) {
+      if (id === a || id === b) continue;
+      const bb = bboxes[id];
+      if (pt.x < bb[0][0] || pt.x > bb[1][0] || pt.y < bb[0][1] || pt.y > bb[1][1]) continue;
+      if (pathEls[id] && pathEls[id].isPointInFill && pathEls[id].isPointInFill(pt)) return true;
+    }
+  }
+  return false;
+}
+
+function bump() { // dead end: flash the outline red
+  const p = document.getElementById('kbdpath'); if (!p) return;
+  p.classList.remove('bump'); void p.getBoundingClientRect(); p.classList.add('bump');
+}
+
+function startId() {
+  if (lastHover && byId[lastHover]) return lastHover;
+  const t = zoom ? d3.zoomTransform(svg.node()) : d3.zoomIdentity;
+  const [vx, vy] = t.invert([W / 2, H / 2]);
+  // the one under the middle of the view, else the nearest one that isn't a tiny dot
+  const allowed = navSet(), pt = new DOMPoint(vx, vy);
+  for (const id of allowed) if (!smallIds.has(id) && pathEls[id] && pathEls[id].isPointInFill && pathEls[id].isPointInFill(pt)) return id;
+  let b = null, s = Infinity;
+  for (const id of allowed) {
+    const [x, y] = centers[id], d = (x - vx) ** 2 + (y - vy) ** 2 + (smallIds.has(id) && proj ? 1e6 : 0);
+    if (d < s) { s = d; b = id; }
+  }
+  return b;
+}
+
+function selectKbd(id) {
+  hideMag();
+  kbdSel = id;
+  const it = byId[id];
+  d3.select('#kbdlayer').style('display', null);
+  d3.select('#kbdpath').attr('d', geoPath(it.f));
+  const [cx, cy] = centers[id];
+  d3.select('#kbdring').attr('cx', cx).attr('cy', cy).style('display', smallIds.has(id) ? null : 'none');
+  // keep it on screen
+  if (zoom) {
+    const t = d3.zoomTransform(svg.node()), [sx, sy] = t.apply([cx, cy]);
+    if (sx < W * 0.12 || sx > W * 0.88 || sy < H * 0.12 || sy > H * 0.88) zoomToPoint(cx, cy, t.k, 350);
+  }
+  if (zoom || smallIds.has(id)) showMag(id);
+  if (magId !== id && !status[id]) { addCls(id, 'hl'); magId = id; } // tint (hideMag clears it)
+  // like hovering: name tooltip for ones you've already filled in
+  hideTip();
+  if (status[id]) {
+    const el = document.querySelector(`#zoomlayer [data-id="${id}"]`);
+    setTimeout(() => { // after any pan finishes
+      if (kbdSel !== id || !el) return;
+      const r = (document.querySelector(`circle.marker[data-id="${id}"]`) || el).getBoundingClientRect();
+      showTip({clientX: r.left + r.width / 2, clientY: r.top + r.height / 2}, byId[id].name);
+    }, zoom ? 380 : 0);
+  }
+}
+function clearKbd() {
+  trail = [];
+  if (!kbdSel) return;
+  kbdSel = null;
+  d3.select('#kbdlayer').style('display', 'none');
+  hideMag();
+}
+
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) || mode !== 'find' || !items.length) return;
+  if (DIRS[e.key]) {
+    e.preventDefault();
+    if (!kbdSel) { trail = []; return selectKbd(startId()); }
+    // The opposite arrow always retraces your steps
+    const top = trail[trail.length - 1];
+    if (top && top.to === kbdSel && e.key === OPP[top.key]) { trail.pop(); return selectKbd(top.from); }
+    const n = pickDir(kbdSel, e.key);
+    if (n) { trail.push({from: kbdSel, to: n, key: e.key}); if (trail.length > 200) trail.shift(); selectKbd(n); }
+    else bump();
+  } else if ((e.key === 'Enter' || e.key === ' ') && kbdSel) {
+    e.preventDefault();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    onMapClick(kbdSel);
+  } else if (e.key === 'Escape') { clearKbd(); hideTip(); }
+});
+
+// ---------- Saving (browser localStorage) ----------
+// Each map + mode + region keeps its own round; missed lists are kept per map + mode.
+const STORE_KEY = 'geoQuiz.v1';
+let store = {};
+try { store = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { store = {}; }
+store.games ||= {}; store.missed ||= {}; store.last ||= {};
+function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {} }
+
+let practice = false;
+const missKey = () => `${mapKey}|${mode}`;
+const gameKey = () => practice ? `${missKey()}|practice` : `${missKey()}|${region}`;
+const missedList = () => (store.missed[missKey()] ||= []);
+
+function persist() {
+  store.games[gameKey()] = {status, queue, current: current || null, total};
+  store.last = {map: mapKey, mode, region, worldRegion: mapKey === 'world' ? region : store.last.worldRegion};
+  saveStore();
+}
+function markMissed(id, missed) {
+  const list = missedList(), i = list.indexOf(id);
+  if (missed && i < 0) list.push(id);
+  if (!missed && i >= 0) list.splice(i, 1);
+  saveStore();
+  updateMissedUI();
+}
+function updateMissedUI() {
+  const n = missedList().filter(id => byId[id]).length;
+  $('practice').textContent = practice ? 'Back to main quiz' : `Practice missed (${n})`;
+  $('practice').disabled = !practice && n === 0;
+  $('clearMissed').hidden = practice;
+  $('clearMissed').disabled = n === 0;
+  $('practiceTag').hidden = !practice;
+  $('region').disabled = practice;
+}
+
+// Timers from an old round must not advance a new one
+let round = 0;
+function later(fn, ms) { const r = round; setTimeout(() => { if (r === round) fn(); }, ms); }
+
+// ---------- Game ----------
+function els(id) { return document.querySelectorAll(`#zoomlayer [data-id="${id}"]`); }
+function addCls(id, c) { els(id).forEach(el => el.classList.add(c)); }
+function rmCls(id, c) { els(id).forEach(el => el.classList.remove(c)); }
+
+function setStatus(id, s) {
+  status[id] = s;
+  rmCls(id, 'target'); rmCls(id, 'hl');
+  addCls(id, s);
+  const lbl = document.querySelector(`[data-for="${id}"]`);
+  if (lbl) lbl.textContent = byId[id].abbr;
+  updateStats();
+  markMissed(id, s === 'revealed');
+  persist();
+}
+
+function updateStats() {
+  const v = Object.values(status);
+  $('s-done').textContent = v.length;
+  $('s-total').textContent = total;
+  $('s-right').textContent = v.filter(x => x === 'correct').length;
+  $('s-given').textContent = v.filter(x => x === 'revealed').length;
+}
+
+function buildRegionSelect() {
+  if (mapKey !== 'world') { region = 'all'; return; }
+  $('region').innerHTML = REGIONS.map(([k, label]) => {
+    const n = items.filter(i => k === 'all' || i.region === k).length;
+    return `<option value="${k}"${k === region ? ' selected' : ''}>${label} (${n})</option>`;
+  }).join('');
+}
+
+// fresh = true starts a new round; otherwise resumes the saved one for this map/mode/region
+function start(fresh = false) {
+  round++;
+  locked = false; current = null;
+  document.querySelectorAll('.correct,.revealed,.target,.flash,.pulse,.hl')
+    .forEach(el => el.classList.remove('correct', 'revealed', 'target', 'flash', 'pulse', 'hl'));
+  document.querySelectorAll('.boxlabel').forEach(el => el.textContent = '');
+  $('mapbox').classList.toggle('find', mode === 'find');
+
+  const saved = !fresh && store.games[gameKey()];
+  if (saved) {
+    status = {};
+    for (const [id, s] of Object.entries(saved.status || {})) if (byId[id]) status[id] = s;
+    queue = (saved.queue || []).filter(id => byId[id] && !status[id]);
+    if (saved.current && byId[saved.current] && !status[saved.current]) queue.unshift(saved.current);
+    total = saved.total || queue.length + Object.keys(status).length;
+  } else {
+    status = {};
+    const pool = practice
+      ? missedList().filter(id => byId[id])
+      : items.filter(i => region === 'all' || i.region === region).map(i => i.id);
+    queue = shuffle(pool);
+    total = queue.length;
+  }
+  // repaint saved results
+  for (const [id, s] of Object.entries(status)) {
+    addCls(id, s);
+    const lbl = document.querySelector(`[data-for="${id}"]`);
+    if (lbl) lbl.textContent = byId[id].abbr;
+  }
+  updateStats();
+  updateMissedUI();
+  zoomToRegion();
+  next();
+}
+
+function next() {
+  locked = false;
+  if (current) rmCls(current, 'target');
+  current = queue.shift();
+  tries = 0;
+  persist();
+  if (!current) return finish();
+  if (mode === 'name') { addCls(current, 'target'); zoomToItem(current); }
+  renderPrompt();
+}
+
+function dots() {
+  return `<span class="dots">${Array.from({length: MAX_TRIES}, (_, i) => `<i class="${i < tries ? 'used' : ''}"></i>`).join('')}</span>`;
+}
+
+function renderPrompt(msg = '', cls = '') {
+  const p = $('prompt');
+  if (mode === 'find') {
+    p.innerHTML = `<span class="q">Find <strong>${byId[current].name}</strong></span>${dots()}
+      <button type="button" class="btn" id="giveup">Give up</button>
+      <span class="msg ${cls}">${msg}</span>`;
+  } else {
+    p.innerHTML = `<span class="q">Which ${cfg.noun} is highlighted?</span>
+      <form id="f" style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="guess" autocomplete="off" spellcheck="false" placeholder="Type the ${cfg.noun} name">
+        <button class="btn primary">Guess</button>
+        <button type="button" class="btn" id="giveup">Give up</button>
+      </form>${dots()}<span class="msg ${cls}">${msg}</span>`;
+    $('f').onsubmit = e => { e.preventDefault(); onGuess($('guess').value); };
+    $('guess').focus();
+  }
+  $('giveup').onclick = () => { if (!locked) reveal(); };
+}
+
+function flash(id) {
+  addCls(id, 'flash');
+  setTimeout(() => rmCls(id, 'flash'), 600);
+}
+
+function onMapClick(id) {
+  if (mode !== 'find' || locked || !current || status[id]) return;
+  if (id === current) {
+    setStatus(id, 'correct');
+    locked = true;
+    renderPrompt('Correct!', 'good');
+    later(next, 600);
+    return;
+  }
+  tries++;
+  flash(id);
+  if (tries >= MAX_TRIES) return reveal(`That's ${byId[id].name}. `);
+  renderPrompt(`That's ${byId[id].name}. ${MAX_TRIES - tries} ${plural(MAX_TRIES - tries)} left.`, 'bad');
+}
+
+// Edit distance (insert, delete, substitute, swap neighbors)
+function editDist(a, b) {
+  const d = Array.from({length: a.length + 1}, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+  }
+  return d[a.length][b.length];
+}
+
+// What did the player mean? Returns {id, exact} or null when it's too far from anything / ambiguous.
+function interpret(text) {
+  const t = norm(text);
+  if (!t) return null;
+  if (candidates.some(c => c.id === current && c.key === t)) return {id: current, exact: true};
+  let bestD = Infinity, bestIds = new Set(), bestLen = 0;
+  for (const c of candidates) {
+    const dist = editDist(t, c.key);
+    if (dist < bestD) { bestD = dist; bestIds = new Set([c.id]); bestLen = c.key.length; }
+    else if (dist === bestD) bestIds.add(c.id);
+  }
+  if (bestD === 0) return {id: [...bestIds][0], exact: true};
+  if (bestIds.size !== 1) return null;
+  return bestD <= Math.max(1, Math.round(bestLen * 0.25)) ? {id: [...bestIds][0], exact: false} : null;
+}
+
+function onGuess(text) {
+  if (locked || !text.trim()) return;
+  const name = byId[current].name;
+  const m = interpret(text);
+  if (m && m.id === current) {
+    setStatus(current, 'correct');
+    locked = true;
+    renderPrompt(m.exact ? `Correct, it's ${name}!` : `Correct! (spelled <strong>${name}</strong>)`, 'good');
+    $('guess').disabled = true;
+    later(next, 900);
+    return;
+  }
+  tries++;
+  if (m) flash(m.id); // show where the country they guessed actually is
+  if (tries >= MAX_TRIES) return reveal();
+  const what = m ? `That's not ${byId[m.id].name} (it flashed red).` : `Not "${text.trim().replace(/</g, '&lt;')}".`;
+  renderPrompt(`${what} ${MAX_TRIES - tries} ${plural(MAX_TRIES - tries)} left.`, 'bad');
+  $('guess').classList.add('shake');
+}
+
+function reveal(prefix = '') {
+  locked = true;
+  const id = current, name = byId[id].name;
+  setStatus(id, 'revealed');
+  addCls(id, 'pulse');
+  setTimeout(() => rmCls(id, 'pulse'), 1600);
+  if (mode === 'find') zoomToItem(id);
+  renderPrompt(`${prefix}This one is <strong>${name}</strong>.`, 'bad');
+  if (mode === 'name') $('guess').disabled = true;
+  later(() => { if (mode === 'find') zoomToRegion(); next(); }, 2200);
+}
+
+function finish() {
+  const v = Object.values(status);
+  const right = v.filter(x => x === 'correct').length;
+  const left = missedList().filter(id => byId[id]).length;
+  zoomToRegion();
+  if (practice) {
+    $('prompt').innerHTML = `<span class="done">Practice done! You got <strong>${right}</strong> of ${v.length}.
+      ${left ? `${left} still on your missed list.` : 'Your missed list is empty!'}</span>
+      ${left ? '<button class="btn primary" id="again">Practice again</button>' : ''}
+      <button class="btn" id="exitP">Back to main quiz</button>`;
+    if (left) $('again').onclick = () => start(true);
+    $('exitP').onclick = () => setPractice(false);
+  } else {
+    $('prompt').innerHTML = `<span class="done">Done! You got <strong>${right}</strong> of ${v.length}. Hover over the map to review.</span>
+      <button class="btn primary" id="again">Play again</button>`;
+    $('again').onclick = () => start(true);
+  }
+}
+
+// ---------- Controls ----------
+// Switching map/mode/region keeps each round saved, so no confirmations needed.
+function setMode(m) {
+  if (m === mode) return;
+  mode = m; practice = false;
+  $('m-find').classList.toggle('on', m === 'find');
+  $('m-name').classList.toggle('on', m === 'name');
+  start();
+}
+function setPractice(on) {
+  practice = on;
+  start(on); // practice always starts a fresh round from the current missed list
+}
+$('m-find').onclick = () => setMode('find');
+$('m-name').onclick = () => setMode('name');
+$('reset').onclick = () => {
+  if (Object.keys(status).length && !confirm('Restart this round from the beginning?')) return;
+  start(true);
+};
+$('map').onchange = e => {
+  practice = false;
+  region = (e.target.value === 'world' && store.last.worldRegion) || 'all';
+  loadMap(e.target.value);
+};
+$('region').onchange = e => { region = e.target.value; start(); };
+$('practice').onclick = () => setPractice(!practice);
+$('clearMissed').onclick = () => {
+  const n = missedList().length;
+  if (!n || !confirm(`Clear your missed list (${n}) for ${mode === 'find' ? 'Find it' : 'Name it'} mode on this map?`)) return;
+  store.missed[missKey()] = [];
+  saveStore();
+  updateMissedUI();
+};
+
+// Resume where you left off
+mode = store.last.mode === 'name' ? 'name' : 'find';
+$('m-find').classList.toggle('on', mode === 'find');
+$('m-name').classList.toggle('on', mode === 'name');
+const startMap = store.last.map === 'world' ? 'world' : 'us';
+region = startMap === 'world' ? (store.last.worldRegion || 'all') : 'all';
+$('map').value = startMap;
+loadMap(startMap);
+</script>
+</body>
+</html>
